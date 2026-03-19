@@ -218,12 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function redirectByRole() {
-    let userInfo = null;
-    try {
-      userInfo = await window.Auth.getCurrentUserRole();
-    } catch (err) {
-      userInfo = null;
-    }
+    const userInfo = await window.Auth.getCurrentUserRole();
 
     if (userInfo?.perfil === 'admin') {
       window.location.href = window.Auth.paths().dashboard;
@@ -249,7 +244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (session) {
       const redirected = await redirectByRole();
       if (!redirected) {
-        window.location.href = './pages/cliente.html';
+        await window.Auth.logout();
       }
       return;
     }
@@ -266,7 +261,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       await window.Auth.login(email, password);
       const redirected = await redirectByRole();
       if (!redirected) {
-        window.location.href = './pages/cliente.html';
+        await window.Auth.logout();
+        throw new Error('Este usuario nao pertence a esta barbearia.');
       }
     } catch (err) {
       window.AppUtils.notify(loginInfo, err.message, true);
@@ -296,6 +292,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         password,
         options: {
           data: {
+            barbearia_id: window.Auth.currentBarbeariaId(),
+            barbearia_slug: window.Auth.currentBarbeariaSlug(),
             telefone,
             nome: nomePadrao
           }

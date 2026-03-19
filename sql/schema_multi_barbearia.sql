@@ -1,6 +1,6 @@
 -- =========================================================
 -- BARBERIA D'SOUSA - SCHEMA MULTI BARBEARIA
--- Esta instalacao usa a barbearia id = 1
+-- Esta instalacao mantem a barbearia id = 1 e usa a barbearia publica id = 2
 -- =========================================================
 
 create extension if not exists pgcrypto;
@@ -272,7 +272,7 @@ returns bigint
 language sql
 stable
 as $$
-  select 1::bigint;
+  select 2::bigint;
 $$;
 
 create or replace function public.fn_minha_barbearia_id()
@@ -682,6 +682,7 @@ as $$
   select c.id, c.nome, c.telefone
   from public.clientes c
   where c.usuario_id = auth.uid()
+    and c.barbearia_id = public.fn_minha_barbearia_id()
   limit 1;
 $$;
 
@@ -899,6 +900,7 @@ begin
   into v_cliente_id, v_barbearia_id
   from public.clientes c
   where c.usuario_id = auth.uid()
+    and c.barbearia_id = public.fn_minha_barbearia_id()
   limit 1;
 
   if v_cliente_id is null then
@@ -968,6 +970,8 @@ as $$
   left join public.usuarios ub on ub.id = b.usuario_id
   join public.servicos s on s.id = a.servico_id
   where c.usuario_id = auth.uid()
+    and c.barbearia_id = public.fn_minha_barbearia_id()
+    and a.barbearia_id = public.fn_minha_barbearia_id()
   order by a.data desc, a.hora_inicio desc;
 $$;
 
@@ -985,6 +989,7 @@ begin
   select c.id into v_cliente_id
   from public.clientes c
   where c.usuario_id = auth.uid()
+    and c.barbearia_id = public.fn_minha_barbearia_id()
   limit 1;
 
   select a.data, a.hora_inicio
@@ -1680,6 +1685,34 @@ on conflict (id) do update
   set nome = excluded.nome,
       slug = excluded.slug,
       ativo = true;
+
+insert into public.barbearias (id, nome, slug)
+values (2, 'Barbearia teste', 'barbearia-teste')
+on conflict (id) do update
+  set nome = excluded.nome,
+      slug = excluded.slug,
+      ativo = true;
+
+insert into public.configuracao_agenda (
+  barbearia_id,
+  hora_abertura,
+  hora_fechamento,
+  intervalo_minutos,
+  whatsapp_confirmacao_obrigatoria
+)
+values (
+  2,
+  '09:00',
+  '19:00',
+  30,
+  true
+)
+on conflict (barbearia_id) do update
+  set hora_abertura = excluded.hora_abertura,
+      hora_fechamento = excluded.hora_fechamento,
+      intervalo_minutos = excluded.intervalo_minutos,
+      whatsapp_confirmacao_obrigatoria = excluded.whatsapp_confirmacao_obrigatoria,
+      updated_at = now();
 
 insert into public.configuracao_agenda (
   barbearia_id,

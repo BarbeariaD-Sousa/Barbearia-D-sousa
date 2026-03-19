@@ -1,4 +1,12 @@
 window.Auth = {
+  currentBarbeariaId() {
+    return Number(window.APP_CONFIG?.FRONT_BARBEARIA_ID || 0) || null;
+  },
+
+  currentBarbeariaSlug() {
+    return String(window.APP_CONFIG?.FRONT_BARBEARIA_SLUG || '').trim();
+  },
+
   paths() {
     const inPages = window.location.pathname.includes('/pages/');
     return {
@@ -30,15 +38,31 @@ window.Auth = {
   async getCurrentUserRole() {
     const session = await this.getSession();
     if (!session?.user?.id) return null;
+    const frontBarbeariaId = this.currentBarbeariaId();
 
     const { data, error } = await window.sb
       .from('usuarios')
-      .select('id, nome, email, perfil, ativo')
+      .select('id, nome, email, perfil, ativo, barbearia_id')
       .eq('id', session.user.id)
       .maybeSingle();
 
     if (error) throw error;
     if (data && !data.ativo) return null;
+    if (data && frontBarbeariaId && Number(data.barbearia_id) !== frontBarbeariaId) {
+      await this.logout();
+      throw new Error('Este usuario pertence a outra barbearia e nao pode acessar este front.');
+    }
+
+    const metadataBarbeariaId = Number(
+      session.user.user_metadata?.barbearia_id
+      || session.user.app_metadata?.barbearia_id
+      || 0
+    ) || null;
+
+    if (!data && frontBarbeariaId && metadataBarbeariaId && metadataBarbeariaId !== frontBarbeariaId) {
+      await this.logout();
+      throw new Error('Este usuario pertence a outra barbearia e nao pode acessar este front.');
+    }
 
     if (data) {
       return {
@@ -60,12 +84,8 @@ window.Auth = {
     const session = await this.getSession();
     if (!session?.user?.id) return null;
 
-    try {
-      const roleData = await this.getCurrentUserRole();
-      if (roleData) return roleData;
-    } catch (err) {
-      console.error('Falha ao carregar perfil em usuarios:', err);
-    }
+    const roleData = await this.getCurrentUserRole();
+    if (roleData) return roleData;
 
     return {
       id: session.user.id,

@@ -1,6 +1,6 @@
 -- =========================================================
 -- BARBERIA D'SOUSA - SCHEMA MULTI BARBEARIA
--- Esta instalacao mantem a barbearia id = 1 e usa a barbearia publica id = 2
+-- Esta instalacao mantem a barbearia id = 1 como barbearia publica padrao
 -- =========================================================
 
 create extension if not exists pgcrypto;
@@ -272,7 +272,7 @@ returns bigint
 language sql
 stable
 as $$
-  select 2::bigint;
+  select 1::bigint;
 $$;
 
 create or replace function public.fn_minha_barbearia_id()
@@ -1685,34 +1685,6 @@ on conflict (id) do update
   set nome = excluded.nome,
       slug = excluded.slug,
       ativo = true;
-
-insert into public.barbearias (id, nome, slug)
-values (2, 'Barbearia teste', 'barbearia-teste')
-on conflict (id) do update
-  set nome = excluded.nome,
-      slug = excluded.slug,
-      ativo = true;
-
-insert into public.configuracao_agenda (
-  barbearia_id,
-  hora_abertura,
-  hora_fechamento,
-  intervalo_minutos,
-  whatsapp_confirmacao_obrigatoria
-)
-values (
-  2,
-  '09:00',
-  '19:00',
-  30,
-  true
-)
-on conflict (barbearia_id) do update
-  set hora_abertura = excluded.hora_abertura,
-      hora_fechamento = excluded.hora_fechamento,
-      intervalo_minutos = excluded.intervalo_minutos,
-      whatsapp_confirmacao_obrigatoria = excluded.whatsapp_confirmacao_obrigatoria,
-      updated_at = now();
 
 insert into public.configuracao_agenda (
   barbearia_id,

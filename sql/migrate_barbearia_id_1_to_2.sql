@@ -1,13 +1,12 @@
 -- =========================================================
--- MIGRACAO: ADICIONAR BARBEARIA TESTE ID 2
--- Mantem a barbearia id = 1 intacta e faz o fluxo publico
--- usar a barbearia teste id = 2.
+-- MIGRACAO: GARANTIR FLUXO PUBLICO NA BARBEARIA ID 1
+-- Mantem a barbearia principal id = 1 como padrao do fluxo publico.
 -- =========================================================
 
 begin;
 
 insert into public.barbearias (id, nome, slug)
-values (2, 'Barbearia teste', 'barbearia-teste')
+values (1, 'Barberia D''sousa', 'barberia-dsousa')
 on conflict (id) do update
   set nome = excluded.nome,
       slug = excluded.slug,
@@ -21,7 +20,7 @@ insert into public.configuracao_agenda (
   whatsapp_confirmacao_obrigatoria
 )
 values (
-  2,
+  1,
   '09:00',
   '19:00',
   30,
@@ -39,7 +38,7 @@ returns bigint
 language sql
 stable
 as $$
-  select 2::bigint;
+  select 1::bigint;
 $$;
 
 create or replace function public.obter_cliente_auth()

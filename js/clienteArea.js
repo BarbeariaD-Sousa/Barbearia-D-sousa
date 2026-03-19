@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadDashboard() {
-    const { data, error } = await window.sb.rpc('listar_meus_agendamentos');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('listar_meus_agendamentos');
     if (error) throw error;
 
     const rows = data || [];
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const displayName = profile?.nome || session.user.user_metadata?.nome || session.user.email?.split('@')[0] || 'Cliente';
     const telefone = session.user.user_metadata?.telefone || null;
 
-    const { error: ensureError } = await window.sb.rpc('garantir_cliente_auth', {
+    const { error: ensureError } = await window.Api.rpcWithFrontBarbearia('garantir_cliente_auth', {
       p_nome: displayName,
       p_telefone: telefone,
       p_email: session.user.email || null

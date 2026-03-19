@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadAgendaConfig() {
-    const { data, error } = await window.sb.rpc('obter_configuracao_agenda_publica');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('obter_configuracao_agenda_publica');
     if (error) throw error;
 
     agendaConfig = data?.[0] || {
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { data: slots, error } = await window.sb.rpc('horarios_disponiveis_cliente', {
+      const { data: slots, error } = await window.Api.rpcWithFrontBarbearia('horarios_disponiveis_cliente', {
         p_data: data,
         p_barbeiro_id: barbeiroId,
         p_servico_id: servicoId
@@ -205,8 +205,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadAgendamentoOptions() {
     const [barbeirosRes, servicosRes] = await Promise.all([
-      window.sb.rpc('listar_barbeiros_publico'),
-      window.sb.rpc('listar_servicos_publico')
+      window.Api.rpcWithFrontBarbearia('listar_barbeiros_publico'),
+      window.Api.rpcWithFrontBarbearia('listar_servicos_publico')
     ]);
     if (barbeirosRes.error) throw barbeirosRes.error;
     if (servicosRes.error) throw servicosRes.error;
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return true;
     }
 
-    const { data: clienteData, error: clienteError } = await window.sb.rpc('obter_cliente_auth');
+    const { data: clienteData, error: clienteError } = await window.Api.rpcWithFrontBarbearia('obter_cliente_auth');
     if (clienteError) throw clienteError;
     if (clienteData && clienteData.length > 0) {
       window.location.href = './pages/cliente.html';
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (signUpError) throw signUpError;
 
       if (signUpData?.session) {
-        const { error: ensureError } = await window.sb.rpc('garantir_cliente_auth', {
+        const { error: ensureError } = await window.Api.rpcWithFrontBarbearia('garantir_cliente_auth', {
           p_nome: nomePadrao,
           p_telefone: telefone,
           p_email: email
@@ -353,7 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         data: srDataInput.value,
         hora: srHoraInput.value
       };
-      const { error } = await window.sb.rpc('criar_agendamento_publico', {
+      const { error } = await window.Api.rpcWithFrontBarbearia('criar_agendamento_publico', {
         p_cliente_id: null,
         p_nome: nome,
         p_telefone: telefone,

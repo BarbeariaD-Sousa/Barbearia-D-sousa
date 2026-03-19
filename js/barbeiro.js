@@ -137,11 +137,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function getMeuBarbeiroId() {
-    const { data, error } = await window.sb
-      .from('barbeiros')
-      .select('id')
-      .eq('usuario_id', user.id)
-      .maybeSingle();
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('barbeiros')
+        .select('id')
+        .eq('usuario_id', user.id)
+    ).maybeSingle();
 
     if (error) throw error;
     return data?.id || null;
@@ -153,27 +154,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     const periodo = periodoSelect.value || 'hoje';
     const { inicioISO, fimISO } = periodRange(periodo);
 
-    const { data, error } = await window.sb
-      .from('agendamentos')
-      .select(`
-        id,
-        data,
-        hora_inicio,
-        hora_fim,
-        status,
-        pagamento_pendente,
-        cliente_id,
-        clientes!agendamentos_cliente_id_fkey(nome, telefone),
-        servicos(nome),
-        valor,
-        motivo_cancelamento,
-        cancelado_em
-      `)
-      .eq('barbeiro_id', barbeiroId)
-      .gte('data', inicioISO)
-      .lte('data', fimISO)
-      .order('data', { ascending: false })
-      .order('hora_inicio', { ascending: false });
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .select(`
+          id,
+          data,
+          hora_inicio,
+          hora_fim,
+          status,
+          pagamento_pendente,
+          cliente_id,
+          clientes!agendamentos_cliente_id_fkey(nome, telefone),
+          servicos(nome),
+          valor,
+          motivo_cancelamento,
+          cancelado_em
+        `)
+        .eq('barbeiro_id', barbeiroId)
+        .gte('data', inicioISO)
+        .lte('data', fimISO)
+        .order('data', { ascending: false })
+        .order('hora_inicio', { ascending: false })
+    );
 
     if (error) throw error;
     return data || [];
@@ -206,12 +209,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!barbeiroId) return [];
 
     const { inicioISO, fimISO } = periodRange(periodoSelect.value || 'hoje');
-    const { data, error } = await window.sb
-      .from('comissoes')
-      .select('valor_comissao, data')
-      .eq('barbeiro_id', barbeiroId)
-      .gte('data', inicioISO)
-      .lte('data', fimISO);
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('comissoes')
+        .select('valor_comissao, data')
+        .eq('barbeiro_id', barbeiroId)
+        .gte('data', inicioISO)
+        .lte('data', fimISO)
+    );
 
     if (error) throw error;
     return data || [];
@@ -224,19 +229,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hoje = window.AppUtils.todayISO();
     const horaAtual = `${window.AppUtils.pad2(agora.getHours())}:${window.AppUtils.pad2(agora.getMinutes())}:00`;
 
-    const { data, error } = await window.sb
-      .from('agendamentos')
-      .select(`
-        data,
-        hora_inicio,
-        clientes!agendamentos_cliente_id_fkey(nome, telefone)
-      `)
-      .eq('barbeiro_id', barbeiroId)
-      .in('status', ['agendado', 'em_atendimento'])
-      .or(`data.gt.${hoje},and(data.eq.${hoje},hora_inicio.gte.${horaAtual})`)
-      .order('data', { ascending: true })
-      .order('hora_inicio', { ascending: true })
-      .limit(3);
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .select(`
+          data,
+          hora_inicio,
+          clientes!agendamentos_cliente_id_fkey(nome, telefone)
+        `)
+        .eq('barbeiro_id', barbeiroId)
+        .in('status', ['agendado', 'em_atendimento'])
+        .or(`data.gt.${hoje},and(data.eq.${hoje},hora_inicio.gte.${horaAtual})`)
+        .order('data', { ascending: true })
+        .order('hora_inicio', { ascending: true })
+        .limit(3)
+    );
 
     if (error) throw error;
     return data || [];
@@ -323,10 +330,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function persistAgendamentoStatus(id, payload) {
-    const { error } = await window.sb
-      .from('agendamentos')
-      .update(payload)
-      .eq('id', id);
+    const { error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .update(payload)
+        .eq('id', id)
+    );
 
     if (!error) return;
 
@@ -336,10 +345,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       || Object.prototype.hasOwnProperty.call(payload, 'cancelado_por');
 
     if (hasCancelExtras && (message.includes('column') || message.includes('motivo_cancelamento') || message.includes('cancelado_'))) {
-      const { error: fallbackError } = await window.sb
-        .from('agendamentos')
-        .update({ status: payload.status })
-        .eq('id', id);
+      const { error: fallbackError } = await window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('agendamentos')
+          .update({ status: payload.status })
+          .eq('id', id)
+      );
 
       if (fallbackError) throw fallbackError;
       return;
@@ -349,11 +360,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function updateStatusWithValidation(id, nextStatus, motivo = null) {
-    const { data: current, error: currentError } = await window.sb
-      .from('agendamentos')
-      .select('id, status')
-      .eq('id', id)
-      .maybeSingle();
+    const { data: current, error: currentError } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .select('id, status')
+        .eq('id', id)
+    ).maybeSingle();
 
     if (currentError) throw currentError;
     if (!current) throw new Error('Agendamento nao encontrado.');

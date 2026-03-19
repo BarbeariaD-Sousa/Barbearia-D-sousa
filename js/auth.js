@@ -40,11 +40,15 @@ window.Auth = {
     if (!session?.user?.id) return null;
     const frontBarbeariaId = this.currentBarbeariaId();
 
-    const { data, error } = await window.sb
+    const query = window.sb
       .from('usuarios')
       .select('id, nome, email, perfil, ativo, barbearia_id')
-      .eq('id', session.user.id)
-      .maybeSingle();
+      .eq('id', session.user.id);
+
+    const { data, error } = await (window.Api?.scopeToFrontBarbearia
+      ? window.Api.scopeToFrontBarbearia(query)
+      : query
+    ).maybeSingle();
 
     if (error) throw error;
     if (data && !data.ativo) return null;

@@ -35,11 +35,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadUsuarioExtra(usuarioId) {
     try {
-      const { data, error } = await window.sb
-        .from('usuarios')
-        .select('nome, email, telefone, data_nascimento')
-        .eq('id', usuarioId)
-        .maybeSingle();
+      const { data, error } = await window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('usuarios')
+          .select('nome, email, telefone, data_nascimento')
+          .eq('id', usuarioId)
+      ).maybeSingle();
 
       if (error) throw error;
       return data || null;

@@ -1,4 +1,36 @@
 window.Api = {
+  currentFrontBarbeariaId() {
+    return Number(window.Auth?.currentBarbeariaId?.() || 0) || null;
+  },
+
+  scopeToFrontBarbearia(query) {
+    const barbeariaId = this.currentFrontBarbeariaId();
+    if (!barbeariaId) return query;
+    return query.eq('barbearia_id', barbeariaId);
+  },
+
+  withFrontBarbearia(payload = {}) {
+    const barbeariaId = this.currentFrontBarbeariaId();
+    if (!barbeariaId) return { ...payload };
+    return {
+      ...payload,
+      barbearia_id: barbeariaId
+    };
+  },
+
+  withFrontBarbeariaRpc(payload = {}) {
+    const barbeariaId = this.currentFrontBarbeariaId();
+    if (!barbeariaId) return { ...payload };
+    return {
+      ...payload,
+      p_barbearia_id: barbeariaId
+    };
+  },
+
+  rpcWithFrontBarbearia(fnName, payload = {}) {
+    return window.sb.rpc(fnName, this.withFrontBarbeariaRpc(payload));
+  },
+
   async runAutoCompletion(force = false) {
     const cacheKey = 'domlucas:auto-completion:last-run';
     const now = Date.now();
@@ -18,10 +50,14 @@ window.Api = {
   },
 
   async updateAgendamento(id, payload) {
-    const { error } = await window.sb
-      .from('agendamentos')
-      .update(payload)
-      .eq('id', id);
+    const query = this.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .update(payload)
+        .eq('id', id)
+    );
+
+    const { error } = await query;
 
     if (error) throw error;
   }

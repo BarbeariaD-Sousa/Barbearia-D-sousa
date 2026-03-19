@@ -118,11 +118,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function getMeuBarbeiroId() {
-    const { data, error } = await window.sb
-      .from('barbeiros')
-      .select('id')
-      .eq('usuario_id', user.id)
-      .maybeSingle();
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('barbeiros')
+        .select('id')
+        .eq('usuario_id', user.id)
+    ).maybeSingle();
 
     if (error) throw error;
     return data?.id || null;
@@ -179,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadManualServices() {
-    const { data, error } = await window.sb.rpc('listar_servicos_publico');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('listar_servicos_publico');
     if (error) throw error;
 
     const rows = data || [];
@@ -257,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const { data, error } = await window.sb.rpc('horarios_disponiveis_cliente', {
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('horarios_disponiveis_cliente', {
       p_data: manualDataInput.value,
       p_barbeiro_id: barbeiroId,
       p_servico_id: manualServicoSelect.value
@@ -326,11 +327,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function updateStatus(id, nextStatus) {
-    const { data, error } = await window.sb
-      .from('agendamentos')
-      .select('status')
-      .eq('id', id)
-      .maybeSingle();
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .select('status')
+        .eq('id', id)
+    ).maybeSingle();
 
     if (error) throw error;
     if (!data) throw new Error('Agendamento nao encontrado.');
@@ -339,7 +341,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       throw new Error('Agendamento finalizado nao pode ser alterado.');
     }
 
-    const { error: updateError } = await window.sb.from('agendamentos').update({ status: nextStatus }).eq('id', id);
+    const { error: updateError } = await window.Api.scopeToFrontBarbearia(
+      window.sb.from('agendamentos').update({ status: nextStatus }).eq('id', id)
+    );
     if (updateError) throw updateError;
   }
 
@@ -349,25 +353,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const { inicioISO, fimISO } = periodRange(periodoSelect.value || 'dia');
-    const { data: rows, error } = await window.sb
-      .from('agendamentos')
-      .select(`
-        id,
-        data,
-        hora_inicio,
-        hora_fim,
-        status,
-        pagamento_pendente,
-        valor,
-        motivo_cancelamento,
-        clientes!agendamentos_cliente_id_fkey(nome, telefone),
-        servicos(nome)
-      `)
-      .eq('barbeiro_id', barbeiroId)
-      .gte('data', inicioISO)
-      .lte('data', fimISO)
-      .order('data', { ascending: false })
-      .order('hora_inicio', { ascending: false });
+    const { data: rows, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .select(`
+          id,
+          data,
+          hora_inicio,
+          hora_fim,
+          status,
+          pagamento_pendente,
+          valor,
+          motivo_cancelamento,
+          clientes!agendamentos_cliente_id_fkey(nome, telefone),
+          servicos(nome)
+        `)
+        .eq('barbeiro_id', barbeiroId)
+        .gte('data', inicioISO)
+        .lte('data', fimISO)
+        .order('data', { ascending: false })
+        .order('hora_inicio', { ascending: false })
+    );
     if (error) throw error;
 
     return rows || [];

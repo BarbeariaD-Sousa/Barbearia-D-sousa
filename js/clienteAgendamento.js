@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadAgendaConfig() {
-    const { data, error } = await window.sb.rpc('obter_configuracao_agenda_publica');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('obter_configuracao_agenda_publica');
     if (error) throw error;
 
     agendaConfig = data?.[0] || {
@@ -119,8 +119,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadOptions() {
     const [barbeirosRes, servicosRes] = await Promise.all([
-      window.sb.rpc('listar_barbeiros_publico'),
-      window.sb.rpc('listar_servicos_publico')
+      window.Api.rpcWithFrontBarbearia('listar_barbeiros_publico'),
+      window.Api.rpcWithFrontBarbearia('listar_servicos_publico')
     ]);
     if (barbeirosRes.error) throw barbeirosRes.error;
     if (servicosRes.error) throw servicosRes.error;
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { data, error } = await window.sb.rpc('horarios_disponiveis_cliente', {
+      const { data, error } = await window.Api.rpcWithFrontBarbearia('horarios_disponiveis_cliente', {
         p_data: dataInput.value,
         p_barbeiro_id: barbeiroId,
         p_servico_id: servicoId
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { error } = await window.sb.rpc('criar_agendamento_cliente_auth', {
+      const { error } = await window.Api.rpcWithFrontBarbearia('criar_agendamento_cliente_auth', {
         p_servico_id: servicoSelect.value,
         p_barbeiro_id: barbeiroSelect.value,
         p_data: dataInput.value,
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     clienteNome = nome;
     const telefone = session.user.user_metadata?.telefone || null;
 
-    const { error: ensureError } = await window.sb.rpc('garantir_cliente_auth', {
+    const { error: ensureError } = await window.Api.rpcWithFrontBarbearia('garantir_cliente_auth', {
       p_nome: nome,
       p_telefone: telefone,
       p_email: session.user.email || null

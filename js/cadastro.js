@@ -266,11 +266,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function refreshCategoriasDespesa() {
-    const { data, error } = await window.sb
-      .from('categorias_despesa')
-      .select('id, nome')
-      .order('nome', { ascending: true })
-      .limit(150);
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('categorias_despesa')
+        .select('id, nome')
+        .order('nome', { ascending: true })
+        .limit(150)
+    );
     if (error) throw error;
 
     listCategoriasDespesa.innerHTML = (data || []).map((d) => `
@@ -285,10 +287,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function refreshServicos() {
-    const { data, error } = await window.sb
-      .from('servicos')
-      .select('id, nome, preco, duracao_minutos')
-      .order('nome', { ascending: true });
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('servicos')
+        .select('id, nome, preco, duracao_minutos')
+        .order('nome', { ascending: true })
+    );
 
     if (error) throw error;
 
@@ -497,10 +501,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const novoValor = Number(formValues.comissao);
 
       try {
-        const { error } = await window.sb
-          .from('barbeiros')
-          .update({ comissao_percentual: novoValor })
-          .eq('usuario_id', btnEditComissao.dataset.id);
+        const { error } = await window.Api.scopeToFrontBarbearia(
+          window.sb
+            .from('barbeiros')
+            .update({ comissao_percentual: novoValor })
+            .eq('usuario_id', btnEditComissao.dataset.id)
+        );
         if (error) throw error;
         await showFeedback('Comissao atualizada com sucesso.');
         loadedTabs.delete('usuarios');
@@ -571,11 +577,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { error } = await window.sb.from('servicos').insert({
-        nome,
-        preco,
-        duracao_minutos: Math.round(duracao)
-      });
+      const { error } = await window.sb.from('servicos').insert(
+        window.Api.withFrontBarbearia({
+          nome,
+          preco,
+          duracao_minutos: Math.round(duracao)
+        })
+      );
       if (error) throw error;
 
       formServico.reset();
@@ -601,7 +609,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           confirmText: 'Excluir'
         });
         if (!ok) return;
-        const { error } = await window.sb.from('servicos').delete().eq('id', servicoId);
+        const { error } = await window.Api.scopeToFrontBarbearia(
+          window.sb.from('servicos').delete().eq('id', servicoId)
+        );
         if (error) throw error;
         await showFeedback('Servico excluido com sucesso.');
         await refreshServicos();
@@ -632,14 +642,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const preco = parsePreco(formValues.preco);
         const duracao = Number(formValues.duracao);
 
-        const { error } = await window.sb
-          .from('servicos')
-          .update({
-            nome: String(formValues.nome).trim(),
-            preco,
-            duracao_minutos: Math.round(duracao)
-          })
-          .eq('id', servicoId);
+        const { error } = await window.Api.scopeToFrontBarbearia(
+          window.sb
+            .from('servicos')
+            .update({
+              nome: String(formValues.nome).trim(),
+              preco,
+              duracao_minutos: Math.round(duracao)
+            })
+            .eq('id', servicoId)
+        );
         if (error) throw error;
         await showFeedback('Servico atualizado com sucesso.');
         await refreshServicos();
@@ -660,9 +672,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { error } = await window.sb.from('categorias_despesa').insert({
-        nome
-      });
+      const { error } = await window.sb.from('categorias_despesa').insert(
+        window.Api.withFrontBarbearia({
+          nome
+        })
+      );
       if (error) throw error;
 
       formCategoriaDespesa.reset();
@@ -688,7 +702,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           confirmText: 'Excluir'
         });
         if (!ok) return;
-        const { error } = await window.sb.from('categorias_despesa').delete().eq('id', id);
+        const { error } = await window.Api.scopeToFrontBarbearia(
+          window.sb.from('categorias_despesa').delete().eq('id', id)
+        );
         if (error) throw error;
         await showFeedback('Categoria excluida com sucesso.');
         await refreshCategoriasDespesa();
@@ -707,12 +723,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         if (!formValues) return;
 
-        const { error } = await window.sb
-          .from('categorias_despesa')
-          .update({
-            nome: String(formValues.nome).trim()
-          })
-          .eq('id', id);
+        const { error } = await window.Api.scopeToFrontBarbearia(
+          window.sb
+            .from('categorias_despesa')
+            .update({
+              nome: String(formValues.nome).trim()
+            })
+            .eq('id', id)
+        );
         if (error) throw error;
         await showFeedback('Categoria atualizada com sucesso.');
         await refreshCategoriasDespesa();

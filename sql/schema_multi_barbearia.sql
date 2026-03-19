@@ -540,7 +540,9 @@ for each row execute function public.trg_sync_financeiro_agendamento();
 -- RPCS PUBLICAS E CLIENTE
 -- =========================================================
 
-create or replace function public.listar_barbeiros_publico()
+create or replace function public.listar_barbeiros_publico(
+  p_barbearia_id bigint default null
+)
 returns table (
   id uuid,
   nome text,
@@ -553,13 +555,15 @@ as $$
   select b.id, b.nome, coalesce(nullif(b.telefone, ''), u.telefone) as telefone
   from public.barbeiros b
   left join public.usuarios u on u.id = b.usuario_id
-  where b.barbearia_id = public.fn_barbearia_publica_id()
+  where b.barbearia_id = coalesce(p_barbearia_id, public.fn_barbearia_publica_id())
     and b.ativo = true
     and coalesce(u.perfil, 'barbeiro') <> 'admin'
   order by b.nome;
 $$;
 
-create or replace function public.listar_servicos_publico()
+create or replace function public.listar_servicos_publico(
+  p_barbearia_id bigint default null
+)
 returns table (
   id uuid,
   nome text,
@@ -572,12 +576,14 @@ set search_path = public
 as $$
   select s.id, s.nome, s.preco, s.duracao_minutos
   from public.servicos s
-  where s.barbearia_id = public.fn_barbearia_publica_id()
+  where s.barbearia_id = coalesce(p_barbearia_id, public.fn_barbearia_publica_id())
     and s.ativo = true
   order by s.nome;
 $$;
 
-create or replace function public.obter_configuracao_agenda_publica()
+create or replace function public.obter_configuracao_agenda_publica(
+  p_barbearia_id bigint default null
+)
 returns table (
   hora_abertura time,
   hora_fechamento time,
@@ -590,14 +596,15 @@ set search_path = public
 as $$
   select c.hora_abertura, c.hora_fechamento, c.intervalo_minutos, c.whatsapp_confirmacao_obrigatoria
   from public.configuracao_agenda c
-  where c.barbearia_id = public.fn_barbearia_publica_id()
+  where c.barbearia_id = coalesce(p_barbearia_id, public.fn_barbearia_publica_id())
   limit 1;
 $$;
 
 create or replace function public.garantir_cliente_auth(
   p_nome text,
   p_telefone text default null,
-  p_email text default null
+  p_email text default null,
+  p_barbearia_id bigint default null
 )
 returns uuid
 language plpgsql
@@ -606,7 +613,11 @@ set search_path = public
 as $$
 declare
   v_uid uuid;
-  v_barbearia_id bigint := public.fn_barbearia_publica_id();
+  v_barbearia_id bigint := coalesce(
+    p_barbearia_id,
+    public.fn_minha_barbearia_id(),
+    public.fn_barbearia_publica_id()
+  );
 begin
   v_uid := auth.uid();
   if v_uid is null then
@@ -659,17 +670,20 @@ $$;
 create or replace function public.registrar_cliente_auth(
   p_nome text,
   p_telefone text default null,
-  p_email text default null
+  p_email text default null,
+  p_barbearia_id bigint default null
 )
 returns uuid
 language sql
 security definer
 set search_path = public
 as $$
-  select public.garantir_cliente_auth(p_nome, p_telefone, p_email);
+  select public.garantir_cliente_auth(p_nome, p_telefone, p_email, p_barbearia_id);
 $$;
 
-create or replace function public.obter_cliente_auth()
+create or replace function public.obter_cliente_auth(
+  p_barbearia_id bigint default null
+)
 returns table (
   id uuid,
   nome text,
@@ -682,14 +696,15 @@ as $$
   select c.id, c.nome, c.telefone
   from public.clientes c
   where c.usuario_id = auth.uid()
-    and c.barbearia_id = public.fn_minha_barbearia_id()
+    and c.barbearia_id = coalesce(p_barbearia_id, public.fn_minha_barbearia_id())
   limit 1;
 $$;
 
 create or replace function public.horarios_disponiveis_cliente(
   p_data date,
   p_barbeiro_id uuid,
-  p_servico_id uuid
+  p_servico_id uuid,
+  p_barbearia_id bigint default null
 )
 returns table (
   hora_inicio time
@@ -713,7 +728,7 @@ begin
     raise exception 'Data, barbeiro e servico sao obrigatorios';
   end if;
 
-  v_barbearia_id := public.fn_barbearia_publica_id();
+  v_barbearia_id := coalesce(p_barbearia_id, public.fn_barbearia_publica_id());
   v_dow := extract(dow from p_data)::integer;
   v_now_sp := now() at time zone 'America/Sao_Paulo';
 
@@ -809,7 +824,8 @@ create or replace function public.criar_agendamento_publico(
   p_servico_id uuid default null,
   p_data date default null,
   p_hora_inicio time default null,
-  p_sem_cadastro boolean default false
+  p_sem_cadastro boolean default false,
+  p_barbearia_id bigint default null
 )
 returns uuid
 language plpgsql
@@ -817,7 +833,7 @@ security definer
 set search_path = public
 as $$
 declare
-  v_barbearia_id bigint := public.fn_barbearia_publica_id();
+  v_barbearia_id bigint := coalesce(p_barbearia_id, public.fn_barbearia_publica_id());
   v_cliente_id uuid;
   v_agendamento_id uuid;
 begin
@@ -884,7 +900,8 @@ create or replace function public.criar_agendamento_cliente_auth(
   p_servico_id uuid,
   p_barbeiro_id uuid,
   p_data date,
-  p_hora_inicio time
+  p_hora_inicio time,
+  p_barbearia_id bigint default null
 )
 returns uuid
 language plpgsql
@@ -894,13 +911,13 @@ as $$
 declare
   v_cliente_id uuid;
   v_agendamento_id uuid;
-  v_barbearia_id bigint;
+  v_barbearia_id bigint := coalesce(p_barbearia_id, public.fn_minha_barbearia_id());
 begin
-  select c.id, c.barbearia_id
-  into v_cliente_id, v_barbearia_id
+  select c.id
+  into v_cliente_id
   from public.clientes c
   where c.usuario_id = auth.uid()
-    and c.barbearia_id = public.fn_minha_barbearia_id()
+    and c.barbearia_id = v_barbearia_id
   limit 1;
 
   if v_cliente_id is null then
@@ -933,7 +950,9 @@ begin
 end;
 $$;
 
-create or replace function public.listar_meus_agendamentos()
+create or replace function public.listar_meus_agendamentos(
+  p_barbearia_id bigint default null
+)
 returns table (
   id uuid,
   barbeiro text,
@@ -970,12 +989,15 @@ as $$
   left join public.usuarios ub on ub.id = b.usuario_id
   join public.servicos s on s.id = a.servico_id
   where c.usuario_id = auth.uid()
-    and c.barbearia_id = public.fn_minha_barbearia_id()
-    and a.barbearia_id = public.fn_minha_barbearia_id()
+    and c.barbearia_id = coalesce(p_barbearia_id, public.fn_minha_barbearia_id())
+    and a.barbearia_id = coalesce(p_barbearia_id, public.fn_minha_barbearia_id())
   order by a.data desc, a.hora_inicio desc;
 $$;
 
-create or replace function public.cancelar_agendamento_cliente(p_agendamento_id uuid)
+create or replace function public.cancelar_agendamento_cliente(
+  p_agendamento_id uuid,
+  p_barbearia_id bigint default null
+)
 returns void
 language plpgsql
 security definer
@@ -985,11 +1007,12 @@ declare
   v_data date;
   v_hora time;
   v_cliente_id uuid;
+  v_barbearia_id bigint := coalesce(p_barbearia_id, public.fn_minha_barbearia_id());
 begin
   select c.id into v_cliente_id
   from public.clientes c
   where c.usuario_id = auth.uid()
-    and c.barbearia_id = public.fn_minha_barbearia_id()
+    and c.barbearia_id = v_barbearia_id
   limit 1;
 
   select a.data, a.hora_inicio
@@ -997,6 +1020,7 @@ begin
   from public.agendamentos a
   where a.id = p_agendamento_id
     and a.cliente_id = v_cliente_id
+    and a.barbearia_id = v_barbearia_id
     and a.status = 'agendado';
 
   if v_data is null then
@@ -1014,7 +1038,8 @@ begin
       motivo_cancelamento = 'Cancelado pelo cliente',
       cancelado_em = now(),
       cancelado_por = auth.uid()
-  where id = p_agendamento_id;
+  where id = p_agendamento_id
+    and barbearia_id = v_barbearia_id;
 end;
 $$;
 
@@ -1658,17 +1683,17 @@ with check (public.fn_admin_mesma_barbearia(barbearia_id));
 grant usage on schema public to anon, authenticated;
 grant select on public.barbearias to authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
-grant execute on function public.listar_barbeiros_publico() to anon, authenticated;
-grant execute on function public.listar_servicos_publico() to anon, authenticated;
-grant execute on function public.obter_configuracao_agenda_publica() to anon, authenticated;
-grant execute on function public.garantir_cliente_auth(text, text, text) to authenticated;
-grant execute on function public.registrar_cliente_auth(text, text, text) to authenticated;
-grant execute on function public.obter_cliente_auth() to authenticated;
-grant execute on function public.horarios_disponiveis_cliente(date, uuid, uuid) to anon, authenticated;
-grant execute on function public.criar_agendamento_publico(uuid, text, text, uuid, uuid, date, time, boolean) to anon, authenticated;
-grant execute on function public.criar_agendamento_cliente_auth(uuid, uuid, date, time) to authenticated;
-grant execute on function public.listar_meus_agendamentos() to authenticated;
-grant execute on function public.cancelar_agendamento_cliente(uuid) to authenticated;
+grant execute on function public.listar_barbeiros_publico(bigint) to anon, authenticated;
+grant execute on function public.listar_servicos_publico(bigint) to anon, authenticated;
+grant execute on function public.obter_configuracao_agenda_publica(bigint) to anon, authenticated;
+grant execute on function public.garantir_cliente_auth(text, text, text, bigint) to authenticated;
+grant execute on function public.registrar_cliente_auth(text, text, text, bigint) to authenticated;
+grant execute on function public.obter_cliente_auth(bigint) to authenticated;
+grant execute on function public.horarios_disponiveis_cliente(date, uuid, uuid, bigint) to anon, authenticated;
+grant execute on function public.criar_agendamento_publico(uuid, text, text, uuid, uuid, date, time, boolean, bigint) to anon, authenticated;
+grant execute on function public.criar_agendamento_cliente_auth(uuid, uuid, date, time, bigint) to authenticated;
+grant execute on function public.listar_meus_agendamentos(bigint) to authenticated;
+grant execute on function public.cancelar_agendamento_cliente(uuid, bigint) to authenticated;
 grant execute on function public.listar_clientes_agendamento_barbeiro(text) to authenticated;
 grant execute on function public.criar_agendamento_manual_barbeiro(uuid, uuid, uuid, date, time) to authenticated;
 grant execute on function public.listar_usuarios_cadastro_admin() to authenticated;

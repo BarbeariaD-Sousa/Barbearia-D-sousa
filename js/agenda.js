@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadBarbeirosFilter() {
-    const { data, error } = await window.sb.rpc('listar_barbeiros_publico');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('listar_barbeiros_publico');
     if (error) throw error;
 
     const rows = data || [];
@@ -134,24 +134,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { inicioISO, fimISO } = periodRange(periodoSelect.value || 'dia');
       updatePeriodLabel(inicioISO, fimISO);
 
-      let query = window.sb
-        .from('agendamentos')
-        .select(`
-          id,
-          data,
-          hora_inicio,
-          hora_fim,
-          status,
-          pagamento_status,
-          valor,
-          clientes(nome),
-          barbeiros(nome),
-          servicos(nome)
-        `)
-        .gte('data', inicioISO)
-        .lte('data', fimISO)
-        .order('data', { ascending: false })
-        .order('hora_inicio', { ascending: false });
+      let query = window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('agendamentos')
+          .select(`
+            id,
+            data,
+            hora_inicio,
+            hora_fim,
+            status,
+            pagamento_status,
+            valor,
+            clientes(nome),
+            barbeiros(nome),
+            servicos(nome)
+          `)
+          .gte('data', inicioISO)
+          .lte('data', fimISO)
+          .order('data', { ascending: false })
+          .order('hora_inicio', { ascending: false })
+      );
 
       if (filtroBarbeiro.value) {
         query = query.eq('barbeiro_id', filtroBarbeiro.value);
@@ -180,11 +182,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function updateStatus(id, nextStatus) {
-    const { data, error } = await window.sb
-      .from('agendamentos')
-      .select('status')
-      .eq('id', id)
-      .maybeSingle();
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('agendamentos')
+        .select('status')
+        .eq('id', id)
+    ).maybeSingle();
 
     if (error) throw error;
     if (!data) throw new Error('Agendamento nao encontrado.');

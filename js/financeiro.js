@@ -187,26 +187,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isPendente = statusPagamento === 'pendente';
 
     if (agendamentoId) {
-      const { data: agRows, error: agError } = await window.sb
-        .from('agendamentos')
-        .update({
-          pagamento_status: statusPagamento,
-          pagamento_pendente: isPendente
-        })
-        .eq('id', agendamentoId)
-        .select('id')
-        .limit(1);
+      const { data: agRows, error: agError } = await window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('agendamentos')
+          .update({
+            pagamento_status: statusPagamento,
+            pagamento_pendente: isPendente
+          })
+          .eq('id', agendamentoId)
+          .select('id')
+          .limit(1)
+      );
 
       if (agError) throw agError;
       if (!agRows?.length) throw new Error('Agendamento vinculado nao foi encontrado para atualizar o pagamento.');
     }
 
-    const { data: finRows, error: finError } = await window.sb
-      .from('financeiro')
-      .update({ status_pagamento: statusPagamento })
-      .eq('id', financeiroId)
-      .select('id, status_pagamento')
-      .limit(1);
+    const { data: finRows, error: finError } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('financeiro')
+        .update({ status_pagamento: statusPagamento })
+        .eq('id', financeiroId)
+        .select('id, status_pagamento')
+        .limit(1)
+    );
 
     if (finError) throw finError;
     if (!finRows?.length) throw new Error('Lancamento financeiro nao foi encontrado.');
@@ -255,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadBarbeiros() {
-    const { data, error } = await window.sb.rpc('listar_barbeiros_publico');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('listar_barbeiros_publico');
     if (error) throw error;
 
     const options = '<option value="">Todos</option>' + (data || []).map((b) => `<option value="${b.id}">${b.nome}</option>`).join('');
@@ -266,10 +270,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadCategoriasDespesa() {
-    const { data, error } = await window.sb
-      .from('categorias_despesa')
-      .select('id, nome')
-      .order('nome', { ascending: true });
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('categorias_despesa')
+        .select('id, nome')
+        .order('nome', { ascending: true })
+    );
 
     if (error) throw error;
 
@@ -281,10 +287,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function fetchFinanceiroServicos(filters = {}) {
-    let query = window.sb
-      .from('financeiro')
-      .select('id, agendamento_id, data, valor_servico, comissao_barbeiro, status_pagamento, forma_pagamento, barbeiro_id, barbeiros(nome), agendamentos(servicos(nome), clientes(nome))')
-      .order('data', { ascending: false });
+    let query = window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('financeiro')
+        .select('id, agendamento_id, data, valor_servico, comissao_barbeiro, status_pagamento, forma_pagamento, barbeiro_id, barbeiros(nome), agendamentos(servicos(nome), clientes(nome))')
+        .order('data', { ascending: false })
+    );
 
     if (filters.dataInicio) query = query.gte('data', filters.dataInicio);
     if (filters.dataFim) query = query.lte('data', filters.dataFim);
@@ -300,10 +308,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function fetchDespesas(filters = {}) {
-    let query = window.sb
-      .from('despesas')
-      .select('id, data, descricao, categoria, valor, observacao')
-      .order('data', { ascending: false });
+    let query = window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('despesas')
+        .select('id, data, descricao, categoria, valor, observacao')
+        .order('data', { ascending: false })
+    );
 
     if (filters.dataInicio) query = query.gte('data', filters.dataInicio);
     if (filters.dataFim) query = query.lte('data', filters.dataFim);
@@ -390,10 +400,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
 
     try {
-      const { data: contasPendentes, error: contasErr } = await window.sb
-        .from('contas_receber_manuais')
-        .select('valor')
-        .eq('status', 'pendente');
+      const { data: contasPendentes, error: contasErr } = await window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('contas_receber_manuais')
+          .select('valor')
+          .eq('status', 'pendente')
+      );
       if (!contasErr) {
         const atual = sumBy(servicosRows.filter((r) => r.status_pagamento === 'pendente'), (r) => r.valor_servico);
         totalContasReceber.textContent = window.AppUtils.formatMoney(atual + sumBy(contasPendentes || [], (r) => r.valor));
@@ -466,15 +478,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadContasReceber() {
     const [pendentesServicosRes, contasManuaisRes] = await Promise.all([
-      window.sb
-        .from('financeiro')
-        .select('id, agendamento_id, data, valor_servico, status_pagamento, barbeiros(nome), agendamentos(clientes(nome), servicos(nome))')
-        .eq('status_pagamento', 'pendente')
-        .order('data', { ascending: false }),
-      window.sb
-        .from('contas_receber_manuais')
-        .select('id, data, descricao, categoria, valor, status, observacao')
-        .order('data', { ascending: false })
+      window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('financeiro')
+          .select('id, agendamento_id, data, valor_servico, status_pagamento, barbeiros(nome), agendamentos(clientes(nome), servicos(nome))')
+          .eq('status_pagamento', 'pendente')
+          .order('data', { ascending: false })
+      ),
+      window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('contas_receber_manuais')
+          .select('id, data, descricao, categoria, valor, status, observacao')
+          .order('data', { ascending: false })
+      )
     ]);
 
     if (pendentesServicosRes.error) throw pendentesServicosRes.error;
@@ -526,12 +542,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadServicosParaReceber() {
-    const { data, error } = await window.sb
-      .from('financeiro')
-      .select('id, agendamento_id, data, valor_servico, status_pagamento, barbeiros(nome), agendamentos(clientes(nome), servicos(nome))')
-      .eq('status_pagamento', 'pago')
-      .order('data', { ascending: false })
-      .limit(120);
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('financeiro')
+        .select('id, agendamento_id, data, valor_servico, status_pagamento, barbeiros(nome), agendamentos(clientes(nome), servicos(nome))')
+        .eq('status_pagamento', 'pago')
+        .order('data', { ascending: false })
+        .limit(120)
+    );
 
     if (error) throw error;
 
@@ -555,11 +573,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadRepasseBarbeiros() {
-    let query = window.sb
-      .from('financeiro')
-      .select('id, data, barbeiro_id, valor_servico, comissao_barbeiro, status_pagamento, barbeiros(nome)')
-      .eq('status_pagamento', 'pago')
-      .order('data', { ascending: false });
+    let query = window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('financeiro')
+        .select('id, data, barbeiro_id, valor_servico, comissao_barbeiro, status_pagamento, barbeiros(nome)')
+        .eq('status_pagamento', 'pago')
+        .order('data', { ascending: false })
+    );
 
     if (rpInicio.value) query = query.gte('data', rpInicio.value);
     if (rpFim.value) query = query.lte('data', rpFim.value);
@@ -719,13 +739,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { error } = await window.sb.from('despesas').insert({
-        descricao: categoria,
-        categoria,
-        valor,
-        data,
-        observacao: observacao || null
-      });
+      const { error } = await window.sb.from('despesas').insert(
+        window.Api.withFrontBarbearia({
+          descricao: categoria,
+          categoria,
+          valor,
+          data,
+          observacao: observacao || null
+        })
+      );
 
       if (error) throw error;
 
@@ -749,10 +771,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!ok) return;
 
     try {
-      const { error } = await window.sb
-        .from('despesas')
-        .delete()
-        .eq('id', btn.dataset.id);
+      const { error } = await window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('despesas')
+          .delete()
+          .eq('id', btn.dataset.id)
+      );
       if (error) throw error;
 
       loadedTabs.delete('despesas');
@@ -784,14 +808,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { error } = await window.sb.from('contas_receber_manuais').insert({
-        descricao,
-        categoria: categoria || null,
-        valor,
-        data,
-        status: 'pendente',
-        observacao: observacao || null
-      });
+      const { error } = await window.sb.from('contas_receber_manuais').insert(
+        window.Api.withFrontBarbearia({
+          descricao,
+          categoria: categoria || null,
+          valor,
+          data,
+          status: 'pendente',
+          observacao: observacao || null
+        })
+      );
 
       if (error) throw error;
 
@@ -818,10 +844,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (tipo === 'servico') {
         await syncServicoPagamento(id, agendamentoId, 'pago');
       } else {
-        const { error } = await window.sb
-          .from('contas_receber_manuais')
-          .update({ status: 'recebido', data_recebimento: window.AppUtils.todayISO() })
-          .eq('id', id);
+        const { error } = await window.Api.scopeToFrontBarbearia(
+          window.sb
+            .from('contas_receber_manuais')
+            .update({ status: 'recebido', data_recebimento: window.AppUtils.todayISO() })
+            .eq('id', id)
+        );
 
         if (error) throw error;
       }

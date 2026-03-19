@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadData() {
-    const { data, error } = await window.sb.rpc('listar_meus_agendamentos');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('listar_meus_agendamentos');
     if (error) throw error;
     cache = data || [];
     renderRows();
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       const row = cache.find((item) => String(item.id) === String(btn.dataset.cancelId));
-      const { error } = await window.sb.rpc('cancelar_agendamento_cliente', {
+      const { error } = await window.Api.rpcWithFrontBarbearia('cancelar_agendamento_cliente', {
         p_agendamento_id: btn.dataset.cancelId
       });
       if (error) throw error;

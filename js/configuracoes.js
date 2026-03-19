@@ -59,10 +59,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadAgendaConfig() {
-    const { data, error } = await window.sb
-      .from('configuracao_agenda')
-      .select('id, barbearia_id, whatsapp_confirmacao_obrigatoria')
-      .maybeSingle();
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('configuracao_agenda')
+        .select('id, barbearia_id, whatsapp_confirmacao_obrigatoria')
+    ).maybeSingle();
     if (error) throw error;
 
     agendaConfigRow = data || null;
@@ -77,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         whatsapp_confirmacao_obrigatoria: whatsappObrigatorioInput.checked
       };
       if (agendaConfigRow?.id) payload.id = agendaConfigRow.id;
-      if (agendaConfigRow?.barbearia_id) payload.barbearia_id = agendaConfigRow.barbearia_id;
+      payload.barbearia_id = agendaConfigRow?.barbearia_id || window.Api.currentFrontBarbeariaId();
 
       const { error } = await window.sb
         .from('configuracao_agenda')
@@ -188,7 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadBarbeiros() {
-    const { data, error } = await window.sb.rpc('listar_barbeiros_publico');
+    const { data, error } = await window.Api.rpcWithFrontBarbearia('listar_barbeiros_publico');
     if (error) throw error;
 
     const rows = data || [];
@@ -209,10 +210,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const { data, error } = await window.sb
-      .from('barbeiro_horarios')
-      .select('dia_semana, ativo, hora_inicio, hora_intervalo_inicio, hora_intervalo_fim, hora_fim, intervalo_minutos')
-      .eq('barbeiro_id', barbeiroId);
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('barbeiro_horarios')
+        .select('dia_semana, ativo, hora_inicio, hora_intervalo_inicio, hora_intervalo_fim, hora_fim, intervalo_minutos')
+        .eq('barbeiro_id', barbeiroId)
+    );
     if (error) throw error;
 
     const map = new Map((data || []).map((h) => [Number(h.dia_semana), h]));
@@ -394,7 +397,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
       });
 
-      const { error } = await window.sb.from('barbeiro_horarios').upsert(rows, { onConflict: 'barbeiro_id,dia_semana' });
+      const scopedRows = rows.map((row) => window.Api.withFrontBarbearia(row));
+      const { error } = await window.sb.from('barbeiro_horarios').upsert(scopedRows, { onConflict: 'barbeiro_id,dia_semana' });
       if (error) throw error;
       window.AppUtils.notify(info, 'Horarios do barbeiro salvos com sucesso.');
     } catch (err) {

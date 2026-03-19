@@ -69,11 +69,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }));
 
   async function getMeuBarbeiroId() {
-    const { data, error } = await window.sb
-      .from('barbeiros')
-      .select('id')
-      .eq('usuario_id', user.id)
-      .maybeSingle();
+    const { data, error } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('barbeiros')
+        .select('id')
+        .eq('usuario_id', user.id)
+    ).maybeSingle();
 
     if (error) throw error;
     return data?.id || null;
@@ -83,28 +84,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isPendente = statusPagamento === 'pendente';
 
     if (agendamentoId) {
-      const { data: agRows, error: agError } = await window.sb
-        .from('agendamentos')
-        .update({
-          pagamento_status: statusPagamento,
-          pagamento_pendente: isPendente
-        })
-        .eq('id', agendamentoId)
-        .eq('barbeiro_id', barbeiroId)
-        .select('id')
-        .limit(1);
+      const { data: agRows, error: agError } = await window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('agendamentos')
+          .update({
+            pagamento_status: statusPagamento,
+            pagamento_pendente: isPendente
+          })
+          .eq('id', agendamentoId)
+          .eq('barbeiro_id', barbeiroId)
+          .select('id')
+          .limit(1)
+      );
 
       if (agError) throw agError;
       if (!agRows?.length) throw new Error('Agendamento vinculado nao foi encontrado para atualizar o pagamento.');
     }
 
-    const { data: finRows, error: finError } = await window.sb
-      .from('financeiro')
-      .update({ status_pagamento: statusPagamento })
-      .eq('id', financeiroId)
-      .eq('barbeiro_id', barbeiroId)
-      .select('id, status_pagamento')
-      .limit(1);
+    const { data: finRows, error: finError } = await window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('financeiro')
+        .update({ status_pagamento: statusPagamento })
+        .eq('id', financeiroId)
+        .eq('barbeiro_id', barbeiroId)
+        .select('id, status_pagamento')
+        .limit(1)
+    );
 
     if (finError) throw finError;
     if (!finRows?.length) throw new Error('Lancamento financeiro nao foi encontrado.');
@@ -124,11 +129,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    let query = window.sb
-      .from('financeiro')
-      .select('id, agendamento_id, data, valor_servico, comissao_barbeiro, status_pagamento, agendamentos(clientes(nome), servicos(nome))')
-      .eq('barbeiro_id', barbeiroId)
-      .order('data', { ascending: false });
+    let query = window.Api.scopeToFrontBarbearia(
+      window.sb
+        .from('financeiro')
+        .select('id, agendamento_id, data, valor_servico, comissao_barbeiro, status_pagamento, agendamentos(clientes(nome), servicos(nome))')
+        .eq('barbeiro_id', barbeiroId)
+        .order('data', { ascending: false })
+    );
     if (bfDataInicio.value) query = query.gte('data', bfDataInicio.value);
     if (bfDataFim.value) query = query.lte('data', bfDataFim.value);
 
@@ -237,24 +244,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const range = periodRange(ganhosPeriodo.value);
     const [agRes, comRes, finRes] = await Promise.all([
-      window.sb
-        .from('agendamentos')
-        .select('id, valor, status, data, hora_inicio, hora_fim, clientes!agendamentos_cliente_id_fkey(nome), servicos(nome)')
-        .eq('barbeiro_id', barbeiroId)
-        .gte('data', range.inicio)
-        .lte('data', range.fim),
-      window.sb
-        .from('comissoes')
-        .select('valor_comissao, data')
-        .eq('barbeiro_id', barbeiroId)
-        .gte('data', range.inicio)
-        .lte('data', range.fim),
-      window.sb
-        .from('financeiro')
-        .select('agendamento_id, comissao_barbeiro, status_pagamento')
-        .eq('barbeiro_id', barbeiroId)
-        .gte('data', range.inicio)
-        .lte('data', range.fim)
+      window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('agendamentos')
+          .select('id, valor, status, data, hora_inicio, hora_fim, clientes!agendamentos_cliente_id_fkey(nome), servicos(nome)')
+          .eq('barbeiro_id', barbeiroId)
+          .gte('data', range.inicio)
+          .lte('data', range.fim)
+      ),
+      window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('comissoes')
+          .select('valor_comissao, data')
+          .eq('barbeiro_id', barbeiroId)
+          .gte('data', range.inicio)
+          .lte('data', range.fim)
+      ),
+      window.Api.scopeToFrontBarbearia(
+        window.sb
+          .from('financeiro')
+          .select('agendamento_id, comissao_barbeiro, status_pagamento')
+          .eq('barbeiro_id', barbeiroId)
+          .gte('data', range.inicio)
+          .lte('data', range.fim)
+      )
     ]);
     if (agRes.error) throw agRes.error;
     if (comRes.error) throw comRes.error;

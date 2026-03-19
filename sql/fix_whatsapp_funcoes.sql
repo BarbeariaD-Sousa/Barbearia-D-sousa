@@ -4,7 +4,9 @@
 -- Atualiza apenas funcoes usadas pelo frontend
 -- =========================================================
 
-create or replace function public.listar_barbeiros_publico()
+create or replace function public.listar_barbeiros_publico(
+  p_barbearia_id bigint default null
+)
 returns table (
   id uuid,
   nome text,
@@ -20,16 +22,15 @@ as $$
     coalesce(nullif(b.telefone, ''), u.telefone) as telefone
   from public.barbeiros b
   left join public.usuarios u on u.id = b.usuario_id
-  where (
-      b.barbearia_id = public.fn_barbearia_publica_id()
-      or b.barbearia_id = public.fn_minha_barbearia_id()
-    )
+  where b.barbearia_id = coalesce(p_barbearia_id, public.fn_barbearia_publica_id())
     and coalesce(b.ativo, true) = true
     and coalesce(u.perfil, 'barbeiro') <> 'admin'
   order by b.nome;
 $$;
 
-create or replace function public.listar_meus_agendamentos()
+create or replace function public.listar_meus_agendamentos(
+  p_barbearia_id bigint default null
+)
 returns table (
   id uuid,
   barbeiro text,
@@ -66,6 +67,8 @@ as $$
   left join public.usuarios ub on ub.id = b.usuario_id
   join public.servicos s on s.id = a.servico_id
   where c.usuario_id = auth.uid()
+    and c.barbearia_id = coalesce(p_barbearia_id, public.fn_minha_barbearia_id())
+    and a.barbearia_id = coalesce(p_barbearia_id, public.fn_minha_barbearia_id())
   order by a.data desc, a.hora_inicio desc;
 $$;
 
@@ -101,6 +104,6 @@ as $$
   order by coalesce(c.nome, u.nome);
 $$;
 
-grant execute on function public.listar_barbeiros_publico() to anon, authenticated;
-grant execute on function public.listar_meus_agendamentos() to authenticated;
+grant execute on function public.listar_barbeiros_publico(bigint) to anon, authenticated;
+grant execute on function public.listar_meus_agendamentos(bigint) to authenticated;
 grant execute on function public.listar_clientes_agendamento_barbeiro(text) to authenticated;

@@ -184,39 +184,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function syncServicoPagamento(financeiroId, agendamentoId, statusPagamento) {
-    const isPendente = statusPagamento === 'pendente';
-
-    if (agendamentoId) {
-      const { data: agRows, error: agError } = await window.Api.scopeToFrontBarbearia(
-        window.sb
-          .from('agendamentos')
-          .update({
-            pagamento_status: statusPagamento,
-            pagamento_pendente: isPendente
-          })
-          .eq('id', agendamentoId)
-          .select('id')
-          .limit(1)
-      );
-
-      if (agError) throw agError;
-      if (!agRows?.length) throw new Error('Agendamento vinculado nao foi encontrado para atualizar o pagamento.');
-    }
-
-    const { data: finRows, error: finError } = await window.Api.scopeToFrontBarbearia(
-      window.sb
-        .from('financeiro')
-        .update({ status_pagamento: statusPagamento })
-        .eq('id', financeiroId)
-        .select('id, status_pagamento')
-        .limit(1)
-    );
-
-    if (finError) throw finError;
-    if (!finRows?.length) throw new Error('Lancamento financeiro nao foi encontrado.');
-    if (finRows[0].status_pagamento !== statusPagamento) {
-      throw new Error('Nao foi possivel confirmar a atualizacao do contas a receber.');
-    }
+    const { error } = await window.Api.rpcWithFrontBarbearia('atualizar_status_pagamento_financeiro', {
+      p_financeiro_id: financeiroId,
+      p_agendamento_id: agendamentoId || null,
+      p_status_pagamento: statusPagamento
+    });
+    if (error) throw error;
   }
 
   function setTab(tab) {

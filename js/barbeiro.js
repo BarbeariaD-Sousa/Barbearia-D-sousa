@@ -212,14 +212,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data, error } = await window.Api.scopeToFrontBarbearia(
       window.sb
         .from('comissoes')
-        .select('valor_comissao, data')
+        .select(
+          valor_comissao,
+          data,
+          agendamento_id,
+          agendamentos!comissoes_agendamento_id_fkey(status)
+        )
         .eq('barbeiro_id', barbeiroId)
         .gte('data', inicioISO)
         .lte('data', fimISO)
     );
 
     if (error) throw error;
-    return data || [];
+    return (data || []).filter((row) => row.agendamentos?.status === 'concluido');
   }
 
   async function loadProximosClientes(barbeiroId) {
@@ -530,3 +535,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.AppUtils.notify(info, err.message, true);
   }
 });
+
